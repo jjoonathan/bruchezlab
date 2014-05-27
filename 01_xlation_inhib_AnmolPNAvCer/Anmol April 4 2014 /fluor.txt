@@ -1,0 +1,3 @@
+	"Cere.Lysate + 1uM PNA"	"Cere.Lysate + 1uM PNA"	"Cere.Lysate + 1uM PNA"	"Cere.Lysate + 50nM PNA"	"Cere.Lysate + 50nM PNA"	"Cere.Lysate + 50nM PNA"
+Exp	0.6864488	0.974196	0.9655184	1.302008	1.318056	0.9037155
+Control	1.037908	0.8110517	1.15104	1.089547	0.8803957	1.030057
