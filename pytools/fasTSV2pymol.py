@@ -7,13 +7,18 @@ from math import *
 from pymol import cmd, stored
 
 # Parse args
-fasTSV_fnames, pdb_fname, objname = [], None, None
+#@todo refactor to use an actual arg parsing lib. It's past time.
+fasTSV_fnames, pdb_fname, objname, outname = [], None, None, None
 bcol, qcol, rncol, ridcol = "beta", None, "resName", "resid"
 for arg in sys.argv[1:]:
-    if arg=="-o":
+    if arg=="-on":
         objname = 1.23
     elif objname==1.23:
         objname = arg
+    if arg=="-o":
+        outname = 1.23
+    elif outname==1.23:
+        outname = arg
     elif arg=="-b":
         bcol = 1.23
     elif bcol==1.23:
@@ -36,21 +41,26 @@ for arg in sys.argv[1:]:
         pdb_fname = arg
     else:
         raise ValueError("Can't figure out what to do with arg "+arg)
-fasTSVbad = not fasTSV_fnames or any([not os.path.exists(p) for p in fasTSV_fnames])
-pdbbad = not pdb_fname or not os.path.exists(pdb_fname)
-if 1.23 in (bcol,qcol,rncol,ridcol) or (not bcol and not qcol):
+fasTSVbad = not fasTSV_fnames
+fasTSV_DNE = any([not os.path.exists(p) for p in fasTSV_fnames])
+pdbbad = not pdb_fname
+pdb_DNE = not os.path.exists(pdb_fname)
+if 1.23 in (bcol,qcol,rncol,ridcol,outname) or (not bcol and not qcol):
     raise ValueError("Incomplete -b or -q argument")
-if fasTSVbad or pdbbad:
+if fasTSVbad or pdbbad or fasTSV_DNE or pdb_DNE:
     print (bcol,qcol,rncol,ridcol)
     print "fasTSVbad: "+str(fasTSVbad)
+    print "fasTSV_DNE: "+str(fasTSV_DNE)
+    print "pdb_DNE: "+str(pdb_DNE)
     print "pdbbad: "+str(pdbbad)
     print "Usage: %s data.fasTSV data2.fasTSV structure.{pdb,pse}" % sys.argv[0]
     print "   Action: copies beta values to the structure"
     print "   Output: structure_.pdb"
-    print "   Option: -o objname (only applies changes to object o in a PSE file)"
+    print "   Option: -on objname (only applies changes to object n in a PSE file)"
+    print "   Option: -o outname name of output file (default: same as input pdb/pse with _ before ext)"
     print "   Option: -b name of the column from which to set b-factors (default: 'beta')"
     print "   Option: -q name of the column from which to set q-factors (default: none)"
-    print "   Option: -q name of the column with seq letters (default: 'resName')"
+    print "   Option: -n name of the column with seq letters (default: 'resName')"
     print "   Option: -i name of the column with residue IDs (default: 'resid')"
     print "   Requires pymol be built+installed from source (module pymol)."
     exit(1)
@@ -70,7 +80,8 @@ for tsv_name in fasTSV_fnames:
         rid = row[ridcol]
         if bcol:
             try:
-                val = log10(row[bcol])
+                #val = log10(row[bcol])
+                val = row[bcol]
             except:
                 val = -1
             if not np.isfinite(val):
@@ -90,7 +101,7 @@ for tsv_name in fasTSV_fnames:
         selectors.append(objname)
     if file_chain:
         selectors.append("chain " + file_chain)
-    sel = ' and '.join(selectors)
+    sel = ' and '.join(selectors) if selectors else 'all'
     print "Selector: "+sel
     mm = "; stored.mismatch += int(stored.resid2n.get(int(resi),resn)!=resn)"
     asgnd = "; stored.assigned += 1"
@@ -118,5 +129,7 @@ for tsv_name in fasTSV_fnames:
     #    # would use load_model here to get this to work
     print "DONE, mismatches=%i, assigned=%i"%(stored.mismatch,stored.assigned)
 
-cmd.save(os.path.splitext(pdb_fname)[0]+"_"+os.path.splitext(pdb_fname)[1])
+if not outname:
+	outname = os.path.splitext(pdb_fname)[0]+"_"+os.path.splitext(pdb_fname)[1]
+cmd.save(outname)
 

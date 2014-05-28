@@ -18,11 +18,13 @@
 #include <cassert>
 #include <fstream>
 #include "PDB.h"
+#define PATH_LEN 2048
 using namespace std;
 
 int main(int argc, char * argv[]) {
 	// Parse Arguments
-	char* infile_name = NULL;
+	const char* infile_name = nullptr;
+	char out_base[PATH_LEN]; out_base[0]=0;
 	bool useseg = 0;
 	vector<string> fields = {"resid","resName","beta"};
 	for (int i=1; i<argc; i++) {
@@ -40,13 +42,23 @@ int main(int argc, char * argv[]) {
 				fields.push_back(word);
 			}
 		}
+		if (!strcmp(argv[i],"-d")) {
+			assert(i!=argc-1 /* -d option needs a directory */ );
+			strcpy(out_base, argv[i+1]);
+			size_t l = strlen(out_base);
+			if (out_base[l]!='/') {
+				out_base[l] = '/';
+				out_base[l+1] = '\0';
+			}
+		}
 		if (!infile_name) infile_name=argv[i];
 	}
 	if (!infile_name) {
 		cout<<"Usage: "<<argv[0]<<" [-useseg] [-f field1,field2,...] PDB_file_to_dump_seqs_from.pdb\n";
 		cout<<"    Outputs each chain as a file <root>.<chain>.fasTSV\n";
-		cout<<"    -useseg: split output files into <seg>-<chain> vs just <chain>\n";
-		cout<<"    -f fields (default resid,resName,beta):\n";
+		cout<<"    -d: output directory. Default: same as input PDB.\n";
+		cout<<"    -useseg: split output files into <seg>-<chain>. Default: just <chain>.\n";
+		cout<<"    -f fields. Default: resid,resName,beta\n";
 		size_t nfields = PDB::AtomRecord::fields_and_descs.size()/2;
 		for (int i=0; i<nfields; i++) {
 			const string& field_name = PDB::AtomRecord::fields_and_descs[2*i];
@@ -55,6 +67,31 @@ int main(int argc, char * argv[]) {
 		}
 		exit(0);
 	}
+	if (out_base[0]=='\0') {
+		// No explicit output dir from -d => we infer it from the .pdb
+		strncpy(out_base,infile_name,PATH_LEN);
+		char* slash = strrchr(out_base,'/');
+		if (slash) {
+			slash[1] = '\0';
+		} else {
+			strcpy(out_base,"./"); //pdb didn't have a dirname => use cwd
+		}
+	}
+	// At this point, out_base is "/path/to/out/dir/"
+	// We now append the input file name so that for input.pdb
+	// out_base is "/path/to/out/dir/input."
+	char* end_of_outbase = out_base+strlen(out_base);
+	char infile_basename[PATH_LEN];
+	char* infile_slash = strrchr(infile_name,'/');
+	if (infile_slash) {
+		strcpy(infile_basename,infile_slash+1);
+	} else {
+		strcpy(infile_basename, infile_name);
+	}
+	char* infile_dot = strrchr(infile_basename,'.');
+	if (infile_dot) infile_dot[0] = '\0';
+	strcpy(end_of_outbase, infile_basename);
+	// At this point, out_base should look like "/path/to/out/dir/input"
 	
 	// Read the PDB records into a (seg,chain)->(resid,AtomRecord*) map
 	PDB::PDBFile pdb(infile_name);
@@ -71,13 +108,9 @@ int main(int argc, char * argv[]) {
 		// Open the file to which we are sending the data of this (seg,chain)
 		const string& seg = it.first.first;
 		char chain = it.first.second;
-		char fname[2048];
-		strcpy(fname, infile_name);
-		size_t fname_len = strlen(fname);
-		char* ext = fname+fname_len-4;
-		if (strcasecmp(ext, ".pdb")) {
-			throw invalid_argument("Input PDB file ought to have a .pdb extension");
-		}
+		char fname[PATH_LEN];
+		strncpy(fname, out_base, PATH_LEN);
+		char* ext = fname+strlen(fname);
 		if (useseg) {
 			sprintf(ext,".%s-%c.fasTSV",seg.c_str(),chain);
 		} else {
@@ -109,6 +142,7 @@ int main(int argc, char * argv[]) {
 			}
 		}
 	}
+	exit(0);
     return 0;
 }
 

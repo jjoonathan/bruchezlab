@@ -53,12 +53,12 @@ if len(tsvs)<2 or output_fname in (None,1.23):
 # if len(set(uniq_ids))!=len(uniq_ids):
 #     raise ValueError("Could not generate unique identifiers from TSV paths: "+str(uniq_ids))
 
-# Take all .tsv files passed in as arguments and use the part before the first '.' as the identifier
+# Take all .tsv files passed in as arguments and use the part before the last '.' as the identifier
 # (i.e. the prefix that will be prepended to its columns to make them unique)
 uniq_ids = []
 for fname in tsvs:
     fname = os.path.basename(fname)
-    dotpos = fname.find('.')
+    dotpos = fname.rfind('.')
     uniq_ids.append(fname[0:dotpos] if dotpos!=-1 else fname[0:])
 
 # Read in the TSV files as pandas dataframes, generate sequences
@@ -90,7 +90,7 @@ for hdr,seq in zip(alnHDR,alnSEQ):
     for aln_i in range(len(seq)):
         if seq[aln_i]=='-':
             pass
-        elif seq[aln_i]==unaln_seq[i]:
+        elif seq[aln_i].upper()==unaln_seq[i].upper():
             aln_col[i] = aln_i
             i += 1
         else:
